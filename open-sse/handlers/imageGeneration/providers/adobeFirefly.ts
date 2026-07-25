@@ -4,6 +4,11 @@
 // Credentials: IMS access_token (JWT, client_id clio-playground-web) or full
 // Cookie header from firefly.adobe.com. Cookie → IMS check/v6/token with
 // client_id clio-playground-web (Express projectx_webapp fallback).
+//
+// Reference images (Media page / OpenAI edit aliases):
+//   1) POST raw bytes → firefly-3p /v2/storage/image → { images:[{ id }] }
+//   2) generate-async with referenceBlobs:[{ id, usage:"general"|"subject" }]
+// See web_providers/adobe_atach_images.txt for live captures.
 
 import { sanitizeErrorMessage } from "../../../utils/error.ts";
 import { saveImageErrorResult, saveImageSuccessResult } from "../../imageGeneration.ts";
@@ -11,6 +16,9 @@ import {
   AdobeFireflyError,
   adobeFireflyGenerateImage,
   resolveAdobeAccessToken,
+  resolveAdobeArpSessionId,
+  resolveAdobeSourceImageIds,
+  resolveAdobeImageModel,
 } from "../../../services/adobeFireflyClient.ts";
 
 function normalizePositiveNumber(value: unknown, fallback: number): number {
@@ -40,6 +48,9 @@ export async function handleAdobeFireflyImageGeneration({
     timeout_ms?: unknown;
     image?: unknown;
     image_url?: unknown;
+    image_urls?: unknown;
+    images?: unknown;
+    [key: string]: unknown;
   };
   credentials: { apiKey?: string; accessToken?: string };
   log?: { info?: (...args: unknown[]) => void; error?: (...args: unknown[]) => void };
@@ -69,7 +80,8 @@ export async function handleAdobeFireflyImageGeneration({
 
     // Keep the raw credential blob for Cookie + sherlockToken (x-arp-session-id).
     // JWT may be embedded in the same paste as cookies (HAR / multi-line).
-    const psd = (credentials as { providerSpecificData?: { cookie?: string } })?.providerSpecificData;
+    const psd = (credentials as { providerSpecificData?: { cookie?: string } })
+      ?.providerSpecificData;
     const sessionCookie =
       (typeof psd?.cookie === "string" && psd.cookie.trim()) ||
       (typeof credentials?.apiKey === "string" && credentials.apiKey.trim()) ||
@@ -77,9 +89,28 @@ export async function handleAdobeFireflyImageGeneration({
         ? credentials.accessToken
         : undefined);
 
+    // Cap uploads by model family (matches MediaViewModel GetSourceImageLimit).
+    const { id: resolvedId } = resolveAdobeImageModel(model);
+    const maxRefs = resolvedId.includes("nano-banana") || resolvedId.includes("gpt-image") ? 4 : 2;
+
+    // One ARP for upload+generate (browser reuses sherlockToken / x-arp-session-id).
+    const arpSessionId = resolveAdobeArpSessionId(sessionCookie);
+
+    const sourceImageIds = await resolveAdobeSourceImageIds({
+      accessToken,
+      body,
+      max: maxRefs,
+      sessionCookie,
+      arpSessionId,
+      prompt,
+      fetchImpl,
+      log,
+    });
+
     log?.info?.(
       "IMAGE",
-      `${provider}/${model} (adobe-firefly) | prompt: "${prompt.slice(0, 60)}${prompt.length > 60 ? "..." : ""}"`
+      `${provider}/${model} (adobe-firefly) | prompt: "${prompt.slice(0, 60)}${prompt.length > 60 ? "..." : ""}"` +
+        (sourceImageIds.length ? ` | refs: ${sourceImageIds.length}` : "")
     );
 
     const result = await adobeFireflyGenerateImage({
@@ -90,9 +121,10 @@ export async function handleAdobeFireflyImageGeneration({
       aspectRatio: body.aspect_ratio ?? body.aspectRatio ?? body.size,
       quality: body.quality,
       seed: Number.isFinite(seed as number) ? (seed as number) : undefined,
-      negativePrompt:
-        typeof body.negative_prompt === "string" ? body.negative_prompt : undefined,
+      negativePrompt: typeof body.negative_prompt === "string" ? body.negative_prompt : undefined,
+      sourceImageIds: sourceImageIds.length ? sourceImageIds : undefined,
       sessionCookie,
+      arpSessionId,
       timeoutMs,
       fetchImpl,
       log,
