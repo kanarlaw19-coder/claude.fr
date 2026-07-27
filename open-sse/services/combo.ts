@@ -1274,7 +1274,24 @@ export async function handleComboChat({
       );
     }
   }
+  const targetsBeforeContextFilter = orderedTargets;
   orderedTargets = applyContextRequirements(orderedTargets, config.contextRequirements, log);
+  if (targetsBeforeContextFilter.length > 0 && orderedTargets.length === 0) {
+    recordComboFailure(effectiveSessionId, combo.name);
+    return errorResponseWithComboDiagnostics(
+      404,
+      "Combo has no executable targets matching context requirements",
+      {
+        poolSize: targetsBeforeContextFilter.length,
+        attempted: 0,
+        excluded: [],
+        attemptOrder: [],
+        terminalReason: "context_requirements_mismatch",
+        recovery: buildRecoveryHint("context_requirements_mismatch"),
+      },
+      { code: "capability_mismatch", type: "invalid_request_error" }
+    );
+  }
 
   // Task-aware reordering: only active for strategies ["smart","task","task-aware","task_aware","auto"].
   // Additive — does not affect any of the other 15 strategies.
