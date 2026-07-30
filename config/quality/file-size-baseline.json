@@ -385,8 +385,7 @@
     "src/app/(dashboard)/dashboard/settings/components/SystemStorageTab.tsx": 1573,
     "src/app/(dashboard)/dashboard/usage/components/BudgetTab.tsx": 1028,
     "src/app/(dashboard)/dashboard/usage/components/EvalsTab.tsx": 2148,
-    "_rebaseline_2026_07_30_8916_quota_compact_layout": "PR #8916 (apoapostolov, feat/improve-provider-quota-layouts) own growth: src/app/(dashboard)/dashboard/usage/components/ProviderLimits/index.tsx 1109->1153 (+44) adds Full/Compact layout toggle for the Provider Quota page — LS_LAYOUT_MODE localStorage constant, LayoutMode type, layoutMode state persisted to localStorage, toggleLayoutMode callback, and a layout-switching button with icon. All additions are at the existing filter/settings chokepoint (same line count pattern as #6211, #4495). Not extractable without splitting the component's state and toolbar away from the data-fetching logic. Original comment on the button was '(compact, no filters)' in HomePageClient — now exposed as a user-facing toggle. Covered by tests/unit/quota-card-grid-compact-layout-8916.test.ts (4 node:test assertions). Structural shrink tracked in #3501.",
-    
+    "_rebaseline_2026_07_30_8916_quota_compact_layout": "PR #8916 (apoapostolov, feat/improve-provider-quota-layouts) own growth: src/app/(dashboard)/dashboard/usage/components/ProviderLimits/index.tsx 1109->1153 (+44) adds Full/Compact layout toggle — LS_LAYOUT_MODE constant, LayoutMode type, layoutMode state, toggleLayoutMode callback, toggle button with icon. At existing filter/settings chokepoint. Not extractable without splitting state + toolbar away from data-fetching. Covered by tests/unit/quota-card-grid-compact-layout-8916.test.ts.",
     "src/app/(dashboard)/dashboard/usage/components/ProviderLimits/index.tsx": 1153,
     "src/app/api/providers/[id]/models/route.ts": 2250,
     "src/app/api/v1/models/catalog.ts": 1549,
