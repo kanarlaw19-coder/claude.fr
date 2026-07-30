@@ -50,6 +50,40 @@ function formatAutoRefreshCountdown(ms: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
+interface AutoRefreshButtonLabelProps {
+  autoRefreshIntervalMs: number;
+  lastRefreshAllAt: number;
+  refreshingAll: boolean;
+  tr: (key: string, fallback: string) => string;
+}
+
+/** #4611: extracted so the per-second `setNow` tick re-renders only
+ * the label instead of the whole ProviderQuotaWidget. */
+export function AutoRefreshButtonLabel({
+  autoRefreshIntervalMs,
+  lastRefreshAllAt,
+  refreshingAll,
+  tr,
+}: AutoRefreshButtonLabelProps) {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    if (autoRefreshIntervalMs <= 0) return;
+    const timer = setInterval(() => setNow(Date.now), 1000);
+    return () => clearInterval(timer);
+  }, [autoRefreshIntervalMs]);
+
+  if (refreshingAll) return <>{tr("refreshing", "Refreshing")}</>;
+  if (autoRefreshIntervalMs <= 0) return <>{tr("forceRefresh", "Refresh now")}</>;
+  return (
+    <>
+      {tr("autoRefreshing", "Auto-refreshing")}{" "}
+      {formatAutoRefreshCountdown(
+        Math.max(0, autoRefreshIntervalMs - (now - lastRefreshAllAt))
+      )}
+    </>
+  );
+}
+
 function QuotaRow({ quota }: { quota: any }) {
   const t = useTranslations("usage");
   const percentage = Math.round(getQuotaRemainingPercentage(quota));
